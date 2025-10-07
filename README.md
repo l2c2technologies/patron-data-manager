@@ -20,11 +20,11 @@ Once installed, you'll get a new menu called **"L2C2 Patron Data Manager"** with
 
 ### 🧼 Cleaning Tools
 * **Remove Line Breaks in Column:** Fixes a whole column by getting rid of messy line breaks and extra spaces.
-* **Advanced Cleanup in Range:** A deep clean for a specific block of cells. It removes spaces before commas, extra spaces between words, and trims spaces from the beginning and end of cells.
+* **Advanced Cleanup in Range:** A deep clean for a specific block of cells. It removes spaces before punctuation, ensures correct spacing after punctuation, and trims spaces from the beginning and end of cells. It is designed to protect email addresses from being incorrectly formatted.
 
 ### 🏗️ Structural Tools
-* **Add Column with Preset Value:** Instantly adds a new column and fills every row with a default value you choose (like "Batch 2025").
-* **Replicate Column:** Copies an entire column and its data into a new one.
+* **Add Column with Preset Value:** Instantly adds a new column and fills every row with a default value you choose, allowing you to specify its position.
+* **Replicate Column:** Copies an entire column and its data into a new one, allowing you to specify its position.
 * **Rename Column Header:** Lets you quickly rename any column.
 * **Delete Column:** Deletes a column for good (it'll ask you first!).
 
@@ -35,6 +35,8 @@ Once installed, you'll get a new menu called **"L2C2 Patron Data Manager"** with
 * **Find & Handle Duplicates:** Scans your columns for duplicate data. It's flexible: you can decide for each duplicate whether to **remove the whole row**, just **clear the cell**, or **skip it**. You can also tell it to apply one action to all duplicates at once.
 * **Validate & Clean Mobile Numbers:** Checks a column for valid 10-digit Indian mobile numbers. It automatically formats good numbers and removes bad ones.
 * **Validate & Clean Emails:** Checks emails for two things: 1) if the format is correct (like `name@domain.com`), and 2) if the domain is real and can receive mail. It removes any bad emails.
+* **Validate & Clean Aadhaar Numbers:** Validates 12-digit Aadhaar numbers using the Verhoeff algorithm checksum. It removes and logs any invalid numbers.
+* **Validate & Format Dates:** Formats various date formats into the standard `YYYY-MM-DD`. It will interactively ask for clarification if it finds a date with an ambiguous two-digit year (e.g., `01/01/24`).
 
 ### 📝 Documentation Tools
 * **Generate Koha Field Map:** An interactive tool that helps you document how your sheet's columns map to the official Koha patron import fields. It creates a new sheet called "Field Mapping" with the results.
