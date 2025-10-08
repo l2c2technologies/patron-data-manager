@@ -5,46 +5,73 @@
  *
  * @author      Indranil Das Gupta <indradg@l2c2.co.in>
  * @copyright   (c) 2023 - 2025 L2C2 Technologies
- * @version     3.3
+ * @version     4.2
  * @license     AGPL v3+
  */
 
 /**
- * Creates the main menu in the Google Sheet UI when the spreadsheet is opened.
+ * Creates the main menu, conditionally enabling the "Update Headers" item.
  */
 function onOpen() {
-  SpreadsheetApp.getUi()
-      .createMenu('L2C2 Patron Data Manager')
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Cleaning Tools')
-          .addItem('Remove Line Breaks in Column', 'removeLineBreaksAndExtraSpaces')
-          .addItem('Advanced Cleanup in Range', 'advancedTextCleanup'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Structural Tools')
-          .addItem('Add Column with Preset Value', 'addNewColumnWithPresetValue')
-          .addItem('Replicate Column', 'replicateColumn')
-          .addItem('Rename Column Header', 'renameColumnHeader')
-          .addItem('Delete Column', 'deleteColumn'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Transformation Tools')
-          .addItem('Conditional Population', 'conditionalPopulation'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Validation Tools')
-          .addItem('Find & Handle Duplicates', 'findAndHandleDuplicates')
-          .addItem('Validate & Clean Mobile Numbers', 'validateMobileNumbers')
-          .addItem('Validate & Clean Emails (Syntax/Domain)', 'validateEmails')
-          .addItem('Validate & Clean Aadhaar Numbers', 'validateAadhaarNumbers')
-          .addItem('Validate & Format Dates', 'validateAndFormatDates'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Documentation Tools')
-          .addItem('Generate Koha Field Map', 'mapKohaFields'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Export Tools')
-          .addItem('Export Filtered Data as CSV', 'exportFilteredDataAsCsv'))
-      .addSeparator()
-      .addSubMenu(SpreadsheetApp.getUi().createMenu('Help')
-          .addItem('About this Tool', 'showHelp'))
-      .addToUi();
+  var ui = SpreadsheetApp.getUi();
+  var menu = ui.createMenu('L2C2 Patron Data Manager');
+
+  menu.addSubMenu(ui.createMenu('Cleaning Tools')
+      .addItem('Remove Line Breaks in Column', 'removeLineBreaksAndExtraSpaces')
+      .addItem('Advanced Cleanup in Range', 'advancedTextCleanup'));
+  menu.addSeparator();
+
+  var structuralMenu = ui.createMenu('Structural Tools')
+      .addItem('Add Column with Preset Value', 'addNewColumnWithPresetValue')
+      .addItem('Replicate Column', 'replicateColumn')
+      .addItem('Rename Column Header', 'renameColumnHeader');
+      
+  // This check is safe inside a try-catch block to handle permissions on first open.
+  try {
+    var mappingSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Field Mapping");
+    var activeSheet = SpreadsheetApp.getActiveSheet();
+    if (mappingSheet && mappingSheet.getLastRow() > 1 && mappingSheet.getLastRow() - 1 === activeSheet.getLastColumn()) {
+      structuralMenu.addItem('Update Headers from Koha Map', 'updateHeadersFromMap');
+    } else {
+      structuralMenu.addItem('Update Headers from Koha Map (Requires Complete Map)', 'showMappingError');
+    }
+  } catch (e) {
+    // If permissions are not granted yet, add the disabled item.
+    structuralMenu.addItem('Update Headers from Koha Map (Requires Complete Map)', 'showMappingError');
+  }
+  structuralMenu.addItem('Delete Column', 'deleteColumn');
+  menu.addSubMenu(structuralMenu);
+  
+  menu.addSeparator();
+  menu.addSubMenu(ui.createMenu('Transformation Tools')
+      .addItem('Conditional Population', 'conditionalPopulation'));
+  menu.addSeparator();
+  menu.addSubMenu(ui.createMenu('Validation Tools')
+      .addItem('Find & Handle Duplicates', 'findAndHandleDuplicates')
+      .addItem('Validate & Clean Mobile Numbers', 'validateMobileNumbers')
+      .addItem('Validate & Clean Emails (Syntax/Domain)', 'validateEmails')
+      .addItem('Validate & Clean Aadhaar Numbers', 'validateAadhaarNumbers')
+      .addItem('Validate & Format Dates', 'validateAndFormatDates'));
+  menu.addSeparator();
+  menu.addSubMenu(ui.createMenu('Documentation Tools')
+      .addItem('Generate Koha Field Map', 'mapKohaFields'));
+  menu.addSeparator();
+  menu.addSubMenu(ui.createMenu('Export Tools')
+      .addItem('Export Filtered Data as CSV', 'exportFilteredDataAsCsv'));
+  menu.addSeparator();
+  menu.addSubMenu(ui.createMenu('Help')
+      .addItem('About this Tool', 'showHelp'));
+      
+  menu.addToUi();
 }
+
+/**
+ * Shows an error message if the mapping isn't ready.
+ */
+function showMappingError() {
+    SpreadsheetApp.getUi().alert('Cannot Update Headers', 'This function is enabled only when a "Field Mapping" sheet exists and the number of mapped fields matches the number of columns in the active sheet.', SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
 
 // --- HELP FUNCTION ---
 
@@ -57,11 +84,12 @@ function showHelp() {
     'This tool helps clean, manage, and prepare your patron data for import into the Koha ILS. All actions that modify the sheet are automatically recorded in a sheet named "Action Log" for full traceability.\n\n' +
     '--- CLEANING TOOLS ---\n' +
     '• Remove Line Breaks in Column: Cleans an entire column by removing line breaks and extra spaces.\n' +
-    '• Advanced Cleanup in Range: Removes extra spaces, handles spacing around punctuation, and removes line breaks within a selected cell range. Protects email addresses from being altered.\n\n' +
+    '• Advanced Cleanup in Range: Removes extra spaces, handles spacing around punctuation (including /), and removes line breaks within a selected cell range. Protects email addresses from being altered.\n\n' +
     '--- STRUCTURAL TOOLS ---\n' +
     '• Add Column with Preset Value: Adds a new column with a default value, asking you where to place it.\n' +
     '• Replicate Column: Duplicates a column and lets you choose where to place the new copy.\n' +
     '• Rename Column Header: Changes the title in the first row of a specified column.\n' +
+    '• Update Headers from Koha Map: (Enabled when ready) Replaces your sheet\'s headers with your mapped Koha fields.\n' +
     '• Delete Column: Permanently removes a specified column after confirmation.\n\n' +
     '--- TRANSFORMATION TOOLS ---\n' +
     '• Conditional Population: Fills a target column with a specific value based on a condition in another column.\n\n' +
@@ -84,10 +112,6 @@ function showHelp() {
 
 /**
  * Logs any action to a dedicated "Action Log" sheet with a dedicated cell reference column.
- * @param {string} actionType The category of action.
- * @param {string} target A general description of the target.
- * @param {string} details A description of the change.
- * @param {string} [cellReference] Optional. The specific cell/range/column A1 notation.
  */
 function logAction(actionType, target, details, cellReference) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -98,7 +122,6 @@ function logAction(actionType, target, details, cellReference) {
     logSheet.getRange("A1:E1").setFontWeight("bold");
     logSheet.setFrozenRows(1);
   } else {
-    // Retroactively add the new column if the log sheet already exists from an older version
     if (logSheet.getRange("D1").getValue() !== "Cell Reference") {
       logSheet.insertColumnAfter(3);
       logSheet.getRange("D1").setValue("Cell Reference").setFontWeight("bold");
@@ -155,10 +178,15 @@ function mapKohaFields() {
     if (!sourceHeader) continue;
 
     var mappedField = '';
+    var suggestion = '';
+    var matchIndex = kohaFields.map(function(f) { return f.toLowerCase(); }).indexOf(sourceHeader.toLowerCase());
+    if (matchIndex !== -1) {
+      suggestion = kohaFields[matchIndex];
+    }
+    
     while (true) {
-      var result = ui.prompt('Map Source Field: "' + sourceHeader + '"', 
-                              'Enter the corresponding Koha field name below. Type "SKIP" to ignore this field or "CANCEL" to stop.', 
-                              ui.ButtonSet.OK_CANCEL);
+      var promptText = 'Enter the Koha field to map to.\nLeave blank to SKIP.\n\nSuggested: "' + suggestion + '"';
+      var result = ui.prompt('Map Source Field: "' + sourceHeader + '"', promptText, ui.ButtonSet.OK_CANCEL);
 
       if (result.getSelectedButton() !== ui.Button.OK) {
         ui.alert('Mapping cancelled.');
@@ -167,31 +195,33 @@ function mapKohaFields() {
       
       mappedField = result.getResponseText().trim();
       
-      if (mappedField.toLowerCase() === 'cancel') {
-        ui.alert('Mapping cancelled.');
-        return;
+      if (mappedField === '') {
+        mappedField = 'SKIP';
+        break;
       }
-      if (mappedField.toLowerCase() === 'skip' || kohaFields.indexOf(mappedField.toLowerCase()) !== -1) {
+      if (kohaFields.indexOf(mappedField.toLowerCase()) !== -1) {
         break;
       } else {
         ui.alert('Invalid Koha Field', '"' + mappedField + '" is not a valid Koha patron field. Please try again.', ui.ButtonSet.OK);
       }
     }
     
-    if (mappedField.toLowerCase() === 'skip') {
+    if (mappedField === 'SKIP') {
       mappingSheet.appendRow([sourceHeader, "--- SKIPPED ---", ""]);
       continue;
     }
 
     var notes = "";
-    var repurposeResult = ui.alert('Is the Koha field "' + mappedField + '" being re-purposed?',
-                                   '(For example, using the "country" field to store an Aadhaar number).',
-                                   ui.ButtonSet.YES_NO);
-    
-    if (repurposeResult === ui.Button.YES) {
-      var notesResult = ui.prompt('Describe the purpose of this field:', ui.ButtonSet.OK_CANCEL);
-      if (notesResult.getSelectedButton() === ui.Button.OK) {
-        notes = notesResult.getResponseText();
+    if (sourceHeader.toLowerCase() !== mappedField.toLowerCase()) {
+      var repurposeResult = ui.alert('Is the Koha field "' + mappedField + '" being re-purposed?',
+                                     '(For example, using "country" to store an Aadhaar number).',
+                                     ui.ButtonSet.YES_NO);
+      
+      if (repurposeResult === ui.Button.YES) {
+        var notesResult = ui.prompt('Describe the purpose of this field:', ui.ButtonSet.OK_CANCEL);
+        if (notesResult.getSelectedButton() === ui.Button.OK) {
+          notes = notesResult.getResponseText();
+        }
       }
     }
     
@@ -215,7 +245,7 @@ function removeLineBreaksAndExtraSpaces() {
       var range = sheet.getRange(columnLetter + ':' + columnLetter);
       var values = range.getValues();
       var changesMade = 0;
-      for (var i = 1; i < values.length; i++) { // Start from row 2
+      for (var i = 1; i < values.length; i++) {
         if (typeof values[i][0] == 'string') {
           var originalValue = values[i][0];
           var cleanedText = originalValue.replace(/(\r\n|\n|\r)/gm, " ").replace(/\s{2,}/g, " ");
@@ -255,7 +285,7 @@ function advancedTextCleanup() {
             var cleanedText = originalValue;
             
             if (cleanedText.indexOf('@') === -1) {
-              var puncChars = ",.?!:;)\\}\\]\\/"; 
+              var puncChars = ",.?!:;)\\}\\]"; 
               cleanedText = cleanedText.replace(new RegExp("\\s+([" + puncChars + "])", "g"), '$1');
               cleanedText = cleanedText.replace(new RegExp("([" + puncChars + "])(?!\\s|[" + puncChars + "]|$)", "g"), '$1 ');
             }
@@ -285,6 +315,72 @@ function advancedTextCleanup() {
 }
 
 // --- STRUCTURAL MANIPULATION FUNCTIONS ---
+
+function updateHeadersFromMap() {
+    var ui = SpreadsheetApp.getUi();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var mappingSheet = ss.getSheetByName("Field Mapping");
+    var activeSheet = ss.getActiveSheet();
+
+    // DEBUG: Show what we're actually getting
+    var debugInfo = 'Active Sheet: "' + activeSheet.getName() + '"\n' +
+                    'Active Sheet Columns: ' + activeSheet.getLastColumn() + '\n' +
+                    'Mapping Sheet Last Row: ' + (mappingSheet ? mappingSheet.getLastRow() : 'N/A') + '\n' +
+                    'Mapping Sheet Last Row - 1: ' + (mappingSheet ? (mappingSheet.getLastRow() - 1) : 'N/A');
+    
+    ui.alert('Debug Info', debugInfo, ui.ButtonSet.OK);
+
+    if (!mappingSheet || mappingSheet.getLastRow() <= 1) {
+        ui.alert('Cannot Update Headers', 'This function requires a "Field Mapping" sheet with mapped fields.', ui.ButtonSet.OK);
+        return;
+    }
+
+    if (mappingSheet.getLastRow() - 1 !== activeSheet.getLastColumn()) {
+        ui.alert('Cannot Update Headers', 'The number of mapped fields (' + (mappingSheet.getLastRow() - 1) + ') does not match the number of columns in the active sheet (' + activeSheet.getLastColumn() + ').', ui.ButtonSet.OK);
+        return;
+    }
+
+    var confirm = ui.alert('Confirm Header Update', 'This will replace the headers in the current sheet ("' + activeSheet.getName() + '") with the values from the "Mapped Koha Field" column in your mapping sheet. This action will be logged. Do you want to proceed?', ui.ButtonSet.YES_NO);
+    if (confirm !== ui.Button.YES) {
+        ui.alert('Operation cancelled.');
+        return;
+    }
+
+    try {
+        var mappingData = mappingSheet.getRange(2, 1, mappingSheet.getLastRow() - 1, 2).getValues();
+        var currentHeaders = activeSheet.getRange(1, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+        var newHeaders = [];
+        var changes = [];
+
+        var headerMap = {};
+        mappingData.forEach(function(row) {
+            headerMap[row[0]] = row[1];
+        });
+
+        currentHeaders.forEach(function(header) {
+            var newHeader = headerMap[header];
+            if (newHeader && newHeader !== '--- SKIPPED ---') {
+                newHeaders.push(newHeader);
+                if (header !== newHeader) {
+                    changes.push("'" + header + "' -> '" + newHeader + "'");
+                }
+            } else {
+                newHeaders.push(header);
+            }
+        });
+
+        if (changes.length > 0) {
+            activeSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+            logAction("Structural Change", "Update Headers", "Updated " + changes.length + " headers from Field Mapping. Changes: " + changes.join(', '), "Row 1");
+            ui.alert('Success', 'Updated ' + changes.length + ' headers. See the Action Log for details.', ui.ButtonSet.OK);
+        } else {
+            ui.alert('No changes were needed. The headers already match the mapping.', ui.ButtonSet.OK);
+        }
+
+    } catch (e) {
+        ui.alert('An error occurred: ' + e.message);
+    }
+}
 
 function addNewColumnWithPresetValue() {
   var ui = SpreadsheetApp.getUi();
@@ -458,7 +554,6 @@ function deleteColumn() {
 }
 
 // --- DATA TRANSFORMATION FUNCTIONS ---
-
 function conditionalPopulation() {
   var ui = SpreadsheetApp.getUi();
   var sourceResult = ui.prompt('Step 1: Source Column', 'Enter letter of column to check:', ui.ButtonSet.OK_CANCEL);
@@ -492,7 +587,7 @@ function conditionalPopulation() {
   var targetValues = targetRange.getValues();
   var populatedCount = 0;
   
-  for (var i = 1; i < sourceValues.length; i++) { // Start from row 2
+  for (var i = 1; i < sourceValues.length; i++) {
     if (sourceValues[i][0] == conditionVal) {
       targetValues[i][0] = valueToSet;
       populatedCount++;
@@ -508,8 +603,7 @@ function conditionalPopulation() {
   }
 }
 
-// --- DATA VALIDATION FUNCTIONS (WITH LOGGING & REMOVAL) ---
-
+// --- DATA VALIDATION FUNCTIONS ---
 function findAndHandleDuplicates() {
   var ui = SpreadsheetApp.getUi();
   var result = ui.prompt('Find & Handle Duplicates', 'Enter column letters to check (e.g., A, C):', ui.ButtonSet.OK_CANCEL);
@@ -546,7 +640,7 @@ function processDuplicates(action) {
       var values = range.getValues();
       var seen = {};
 
-      for (var i = 1; i < values.length; i++) { // Start from row 2
+      for (var i = 1; i < values.length; i++) {
         var cellValue = values[i][0];
         if (cellValue === "" || typeof cellValue === 'boolean') continue;
         
@@ -562,7 +656,7 @@ function processDuplicates(action) {
             var promptMessage = 'Duplicate Found!\n\nValue: "' + cellValue + '" at ' + cellAddress +
                                 '\nFirst seen at ' + seen[valueKey].firstOccurrence +
                                 '\n\nYES = Remove Row\nNO = Clear Cell\nCANCEL = Skip';
-            var interactiveResult = ui.alert(promptMessage, ui.ButtonSet.YES_NO_CANCEL);
+            var interactiveResult = ui.alert('Duplicate Found', promptMessage, ui.ButtonSet.YES_NO_CANCEL);
             if (interactiveResult === ui.Button.YES) userChoice = 'REMOVE_ROW';
             else if (interactiveResult === ui.Button.NO) userChoice = 'CLEAR_CELL';
             else userChoice = 'SKIP';
@@ -594,7 +688,6 @@ function processDuplicates(action) {
     ui.alert('An error occurred: ' + e.message);
   }
 }
-
 function validateMobileNumbers() {
   var ui = SpreadsheetApp.getUi();
   var result = ui.prompt('Enter column letter with mobile numbers:', ui.ButtonSet.OK_CANCEL);
@@ -606,7 +699,7 @@ function validateMobileNumbers() {
   var values = range.getValues();
   var changesMade = 0;
 
-  for (var i = 1; i < values.length; i++) { // Start from row 2
+  for (var i = 1; i < values.length; i++) {
     var originalValue = values[i][0];
     var cellAddress = columnLetter + (i + 1);
     if (originalValue === null || originalValue === '') continue;
@@ -637,7 +730,6 @@ function validateMobileNumbers() {
     ui.alert('Validation Complete', 'No invalid or unformatted numbers found.');
   }
 }
-
 function validateEmails() {
   var ui = SpreadsheetApp.getUi();
   var result = ui.prompt('Enter the column letter with email addresses:', ui.ButtonSet.OK_CANCEL);
@@ -651,7 +743,7 @@ function validateEmails() {
   var domainCache = {};
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
-  for (var i = 1; i < values.length; i++) { // Start from row 2
+  for (var i = 1; i < values.length; i++) {
     var email = values[i][0];
     var cellAddress = columnLetter + (i + 1);
     if (typeof email !== 'string' || email.trim() === '') continue;
@@ -693,10 +785,6 @@ function validateEmails() {
     ui.alert('Validation Complete', 'No invalid emails found.');
   }
 }
-
-/**
- * Validates Aadhaar numbers in a column using the Verhoeff algorithm.
- */
 function validateAadhaarNumbers() {
   // Verhoeff algorithm tables
   const d = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 0, 6, 7, 8, 9, 5], [2, 3, 4, 0, 1, 7, 8, 9, 5, 6], [3, 4, 0, 1, 2, 8, 9, 5, 6, 7], [4, 0, 1, 2, 3, 9, 5, 6, 7, 8], [5, 9, 8, 7, 6, 0, 4, 3, 2, 1], [6, 5, 9, 8, 7, 1, 0, 4, 3, 2], [7, 6, 5, 9, 8, 2, 1, 0, 4, 3], [8, 7, 6, 5, 9, 3, 2, 1, 0, 4], [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]];
@@ -721,7 +809,7 @@ function validateAadhaarNumbers() {
   var values = range.getValues();
   var changesMade = 0;
 
-  for (var i = 1; i < values.length; i++) { // Start from row 2
+  for (var i = 1; i < values.length; i++) {
     var originalValue = values[i][0];
     var cellAddress = columnLetter + (i + 1);
     if (originalValue === null || originalValue === '') continue;
@@ -754,10 +842,6 @@ function validateAadhaarNumbers() {
     ui.alert('Validation Complete', 'No invalid or unformatted Aadhaar numbers found.');
   }
 }
-
-/**
- * Validates and formats dates, using a DD/MM/YYYY assumption for ambiguous dates and prompting for ambiguous 2-digit years.
- */
 function validateAndFormatDates() {
   var ui = SpreadsheetApp.getUi();
   var result = ui.prompt('Enter column letter with dates to validate (e.g., G):', ui.ButtonSet.OK_CANCEL);
@@ -778,7 +862,7 @@ function validateAndFormatDates() {
   var twoDigitYearRegex = /^(\d{1,2}[-\/]\d{1,2}[-\/])(\d{2})$/;
   var dayMonthYearRegex = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/;
 
-  for (var i = 1; i < values.length; i++) { // Start from row 2
+  for (var i = 1; i < values.length; i++) {
     var originalValue = values[i][0];
     var cellAddress = columnLetter + (i + 1);
     
@@ -789,7 +873,6 @@ function validateAndFormatDates() {
     var dayMonthMatch = dateStr.match(dayMonthYearRegex);
     var date;
 
-    // --- STAGE 1: Handle Ambiguous 2-Digit Years (INTERACTIVE) ---
     if (twoDigitMatch) {
       var datePart = twoDigitMatch[1];
       var yearPart = twoDigitMatch[2];
@@ -810,7 +893,6 @@ function validateAndFormatDates() {
       continue;
     }
     
-    // --- STAGE 2: Handle DD/MM/YYYY vs MM/DD/YYYY (AUTOMATIC) ---
     else if (dayMonthMatch) {
       var day = parseInt(dayMonthMatch[1], 10);
       var month = parseInt(dayMonthMatch[2], 10);
@@ -818,12 +900,10 @@ function validateAndFormatDates() {
       date = new Date(year, month - 1, day); 
     }
     
-    // --- STAGE 3: Standard Parsing for All Other Formats ---
     else {
       date = new Date(dateStr);
     }
     
-    // --- Final Validation and Formatting ---
     if (date && !isNaN(date.getTime())) {
       var year = date.getFullYear();
       var month = ('0' + (date.getMonth() + 1)).slice(-2);
@@ -849,10 +929,6 @@ function validateAndFormatDates() {
     ui.alert('Validation Complete', 'No unambiguous invalid or unformatted dates were found in the initial scan.', ui.ButtonSet.OK);
   }
 }
-
-/**
- * Handler function for the ambiguous year dialog.
- */
 function processYearChoice(choice) {
   var columnLetter = PropertiesService.getScriptProperties().getProperty('dateColumnLetter');
   var sheet = SpreadsheetApp.getActiveSheet();
